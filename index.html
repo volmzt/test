@@ -475,7 +475,12 @@ nav{box-shadow:var(--glass-hi),0 10px 40px rgba(47,123,255,.28)}
 .loader{background:radial-gradient(80% 60% at 50% 40%,#0b2a7a,#02050f)}
 
 /* logo vignette = size of the outer ring around it */
-.logo-wrap .logo-plate{width:calc(100% + 48px);height:calc(100% + 48px);padding:clamp(18px,4vw,34px);flex:none}
+.logo-wrap{align-self:center;height:auto;aspect-ratio:1/1}
+.logo-wrap .logo-plate{position:absolute;inset:-24px;width:auto;height:auto;padding:clamp(18px,4vw,34px)}
+.logo-plate .logo{width:100%;height:100%;object-fit:contain}
+
+.bar.loading .seek input{animation:ld 1s ease-in-out infinite alternate}
+@keyframes ld{from{opacity:.35}to{opacity:1}}
 </style>
 </head>
 <body>
@@ -1763,7 +1768,7 @@ function playTrack(id, force){
   if(state.cur===id && !force){ audio.paused ? audio.play().catch(()=>{}) : audio.pause(); return; }
   state.cur=id;
   audio.src=encodeURI(t.file);
-  audio.play().catch(()=>{});
+  audio.play().catch(e=>{ if(e && e.name!=='AbortError' && e.name!=='NotSupportedError') toast(tr('err')); });
   $('#barTitle').textContent=t.n;
   const logo=$('#logo'); if(logo && logo.complete && logo.naturalWidth) $('#cover').style.backgroundImage=`url("${logo.src}")`;
   bar.classList.add('show'); document.body.classList.add('has-player');
@@ -1798,7 +1803,9 @@ $('#prev').addEventListener('click',()=>{ if(audio.currentTime>3){audio.currentT
 $('#shuf').addEventListener('click',e=>{ state.shuffle=!state.shuffle; e.currentTarget.classList.toggle('on',state.shuffle); });
 audio.addEventListener('play',paintRows); audio.addEventListener('pause',paintRows);
 audio.addEventListener('ended',()=>step(1));
-audio.addEventListener('error',()=>{ if(audio.getAttribute('src')) toast(tr('err')); });
+audio.addEventListener('error',()=>{ const src=audio.getAttribute('src'); if(src){ bar.classList.remove('loading'); let p=src; try{ p=decodeURI(src); }catch(e){} toast(tr('err')+': '+p); } });
+['loadstart','waiting'].forEach(ev=>audio.addEventListener(ev,()=>{ if(audio.getAttribute('src')) bar.classList.add('loading'); }));
+['canplay','playing','pause','emptied'].forEach(ev=>audio.addEventListener(ev,()=>bar.classList.remove('loading')));
 audio.addEventListener('loadedmetadata',()=>{ $('#tDur').textContent=fmtT(audio.duration); });
 audio.addEventListener('timeupdate',()=>{
   const p=audio.duration?audio.currentTime/audio.duration:0;
